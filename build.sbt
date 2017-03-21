@@ -19,7 +19,7 @@ lazy val commonSettings = Seq(
   resolvers += Resolver.bintrayRepo("azavea", "maven"),
   libraryDependencies ++= Seq(
     "com.azavea" %% "scaliper" % "0.5.0-SNAPSHOT" % "test",
-    "org.scalatest"       %%  "scalatest"      % Version.scalaTest % "test"
+    "org.scalatest"       %%  "scalatest"      % Version.scalaTest % "test" force()
   ),
 
   parallelExecution in Test := false,
@@ -28,7 +28,8 @@ lazy val commonSettings = Seq(
 ) ++ net.virtualvoid.sbt.graph.Plugin.graphSettings
 
 lazy val root = Project("root", file(".")).
-  dependsOn(geotrellisRaster, geotrellisSpark)
+  dependsOn(geotrellisRaster, geotrellisSpark).
+  settings(scalaVersion := Version.crossScala.head)
 
 lazy val geotrellisRaster = Project("geotrellis-benchmark", file("geotrellis")).
   settings(commonSettings: _*)
@@ -36,11 +37,21 @@ lazy val geotrellisRaster = Project("geotrellis-benchmark", file("geotrellis")).
 lazy val geotrellisSpark = Project("geotrellis-spark-benchmark", file("geotrellis/spark")).
   settings(commonSettings: _*)
 
-lazy val geotrellisRaster010 = Project("geotrellis010-benchmark", file("geotrellis-0.10")).
+lazy val geotrellisRaster100 = Project("geotrellis100-benchmark", file("geotrellis-1.0.0")).
   settings(commonSettings: _*)
+
+lazy val geotrellisSpark100 = Project("geotrellis100-spark-benchmark", file("geotrellis-1.0.0/spark")).
+  settings(commonSettings: _*)
+
+lazy val geotrellisRaster010 = Project("geotrellis010-benchmark", file("geotrellis-0.10")).
+  settings(commonSettings: _*).
+  settings(scalaVersion := Version.crossScala(1))
+
 
 lazy val geotrellisSpark010 = Project("geotrellis010-spark-benchmark", file("geotrellis-0.10/spark")).
-  settings(commonSettings: _*)
+  settings(commonSettings: _*).
+  settings(scalaVersion := Version.crossScala(1))
 
 lazy val geotrellis09 = Project("geotrellis09-benchmark", file("geotrellis-0.9")).
-  settings(commonSettings: _*)
+  settings(commonSettings: _*).
+  settings(scalaVersion := Version.crossScala(1))
