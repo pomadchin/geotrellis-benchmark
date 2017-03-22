@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
-package geotrellis.raster.costdistance
+package benchmark.geotrellis.raster.costdistance
 
 import geotrellis.raster._
 import geotrellis.raster.costdistance._
-import geotrellis.raster.testkit._
-import spire.syntax.cfor._
+import geotrellis.raster.io.geotiff.SinglebandGeoTiff
+
 import scaliper._
+
 import java.util.Locale
 
-import geotrellis.spark.util.KryoWrapper
-
+import scala.concurrent.forkjoin.ThreadLocalRandom
 import scala.language.implicitConversions
 
 
-object CostDistanceBenhmarkFunctions {
+object CostDistanceBenchmarkFunctions {
   implicit def array2Tile(a: Array[Int]): Tile = {
     val size = math.sqrt(a.length).toInt
 
@@ -39,13 +39,12 @@ object CostDistanceBenhmarkFunctions {
     IntArrayTile(a, cols, rows)
 }
 
-class CostDistanceBenhmark extends Benchmarks with ConsoleReport with Serializable {
+class CostDistanceBenchmark extends Benchmarks with ConsoleReport with Serializable {
 
-  benchmark("CostDistanceBenhmark") {
-
+  benchmark("CostDistanceBenchmark") {
     run("ESRI example") {
       new Benchmark {
-        import CostDistanceBenhmarkFunctions._
+        import CostDistanceBenchmarkFunctions._
 
         var n: Int = _
         var N: Double = _
@@ -93,7 +92,7 @@ class CostDistanceBenhmark extends Benchmarks with ConsoleReport with Serializab
 
     run("GRASS example") {
       new Benchmark {
-        import CostDistanceBenhmarkFunctions._
+        import CostDistanceBenchmarkFunctions._
         // Example from GRASS
         // http://grass.osgeo.org/grass64/manuals/r.cost.html
         var costTile: Tile = _
@@ -136,8 +135,75 @@ class CostDistanceBenhmark extends Benchmarks with ConsoleReport with Serializab
       }
     }
 
-    def print(d: DoubleArrayTile): Unit =
-      println(d.array.toList.map(i => " %04.1f ".formatLocal(Locale.ENGLISH, i)).grouped(d.cols).map(_.mkString(",")).mkString("\n"))
+    run("benchmark with one point on aspect-tif.tif (1500 x 1350)") {
+      new Benchmark {
+        var costTile: Tile = _
+        var points: Seq[(Int, Int)] = _
+        override def setUp() = {
+          costTile = SinglebandGeoTiff("geotrellis/src/test/resources/data/aspect-tif.tif").tile
+          points = Seq((1, 1))
+        }
+        def run() = {
+          CostDistance(costTile, points)
+        }
+      }
+    }
 
+    run("benchmark with half of all points on aspect-tif.tif (1500 x 1350)") {
+      new Benchmark {
+        var costTile: Tile = _
+        var points: Seq[(Int, Int)] = _
+        override def setUp() = {
+          costTile = SinglebandGeoTiff("geotrellis/src/test/resources/data/aspect-tif.tif").tile
+          points =
+            (0 until costTile.cols / 2) flatMap { c =>
+              (0 until costTile.rows / 2) map { r =>
+                (c, r)
+              }
+            }
+        }
+        def run() = {
+          CostDistance(costTile, points)
+        }
+      }
+    }
+
+    for (i <- List(3, 10, 100, 1000, 10000, 100000, 1000000)) {
+      run(s"benchmark with rnd 1/$i of all points on aspect-tif.tif (1500 x 1350)") {
+        new Benchmark {
+          var costTile: Tile = _
+          var points: Seq[(Int, Int)] = _
+          override def setUp() = {
+            costTile = SinglebandGeoTiff("geotrellis/src/test/resources/data/aspect-tif.tif").tile
+            points =
+              (0 until costTile.size / i) map { _ =>
+                (ThreadLocalRandom.current().nextInt(0, costTile.cols), ThreadLocalRandom.current().nextInt(0, costTile.rows))
+              }
+          }
+          def run() = {
+            CostDistance(costTile, points)
+          }
+        }
+      }
+    }
+
+    run("benchmark with all points on aspect-tif.tif (1500 x 1350)") {
+      new Benchmark {
+        var costTile: Tile = _
+        var points: Seq[(Int, Int)] = _
+        override def setUp() = {
+          costTile = SinglebandGeoTiff("geotrellis/src/test/resources/data/aspect-tif.tif").tile
+          points =
+            (0 until costTile.cols) flatMap { c =>
+              (0 until costTile.rows) map { r =>
+                (c, r)
+              }
+            }
+        }
+        def run() = {
+          CostDistance(costTile, points)
+        }
+      }
+    }
   }
 }
